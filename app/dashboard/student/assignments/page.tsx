@@ -26,90 +26,44 @@ export default function StudentAssignments() {
   const [submissionText, setSubmissionText] = useState("")
   const [submissionFile, setSubmissionFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
+  const [assignments, setAssignments] = useState<{ current: any[], past: any[] }>({ current: [], past: [] });
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSubmissionFile(e.target.files[0])
+    if (e.target.files) {
+      setSubmissionFile(e.target.files[0]);
     }
-  }
-
-  const handleSubmit = () => {
-    setIsSubmitting(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
-      setSubmissionText("")
-      setSubmissionFile(null)
-      // Close dialog and update UI as needed
-      setSelectedAssignment(null)
-    }, 1500)
-  }
-
-  const assignments = {
-    current: [
-      {
-        id: 1,
-        subject: "Mathematics",
-        title: "Calculus Problem Set 3",
-        description: "Complete problems 1-15 on page 127 of the textbook.",
-        dueDate: "Apr 22, 2025",
-        status: "In Progress",
-      },
-      {
-        id: 2,
-        subject: "Physics",
-        title: "Lab Report: Wave Properties",
-        description: "Write a lab report on the wave properties experiment conducted in class.",
-        dueDate: "Apr 25, 2025",
-        status: "Not Started",
-      },
-      {
-        id: 3,
-        subject: "English Literature",
-        title: "Essay on Shakespeare",
-        description: "Write a 1000-word essay analyzing a theme from Hamlet.",
-        dueDate: "Apr 28, 2025",
-        status: "In Progress",
-      },
-      {
-        id: 4,
-        subject: "Computer Science",
-        title: "Algorithm Implementation",
-        description: "Implement the sorting algorithms discussed in class.",
-        dueDate: "May 2, 2025",
-        status: "Not Started",
-      },
-    ],
-    past: [
-      {
-        id: 5,
-        subject: "Mathematics",
-        title: "Algebra Quiz",
-        description: "Complete the online quiz on algebraic expressions.",
-        dueDate: "Apr 10, 2025",
-        status: "Submitted",
-        grade: "A",
-      },
-      {
-        id: 6,
-        subject: "History",
-        title: "Research Paper",
-        description: "Write a research paper on a historical event of your choice.",
-        dueDate: "Apr 5, 2025",
-        status: "Submitted",
-        grade: "B",
-      },
-      {
-        id: 7,
-        subject: "Chemistry",
-        title: "Lab Report: Chemical Reactions",
-        description: "Write a lab report on the chemical reactions experiment.",
-        dueDate: "Mar 28, 2025",
-        status: "Submitted",
-        grade: "A-",
-      },
-    ],
-  }
+  };
+  
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+  
+    // No form submission needed as students only view assignments
+    try {
+      const response = await fetch("http://localhost:8080/api/assignments", {
+        method: "GET", // Just retrieve assignments
+      });
+  
+      if (!response.ok) {
+        const errorText = await response.text();
+        alert("Failed to fetch assignments: " + errorText);
+        return;
+      }
+  
+      const result = await response.json();
+      alert("Assignments fetched successfully!");
+  
+      // Reset state if you want, although the submission action is not needed here
+      setIsSubmitting(false);
+  
+    } catch (error) {
+      console.error("Fetch error:", error);
+      alert("An error occurred while fetching the assignments. Please try again later.");
+      setIsSubmitting(false);
+    }
+  };
+  
+ 
+        
+  
 
   return (
     <div className="space-y-6">
@@ -212,8 +166,8 @@ export default function StudentAssignments() {
               <Card key={assignment.id} className="overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <Badge variant="success">{assignment.status}</Badge>
-                    <span className="text-sm font-medium">Grade: {assignment.grade}</span>
+                  <Badge variant="secondary">{assignment.status}</Badge>
+                  <span className="text-sm font-medium">Grade: {assignment.grade}</span>
                   </div>
                   <CardTitle className="text-lg">{assignment.title}</CardTitle>
                   <CardDescription>{assignment.subject}</CardDescription>

@@ -1,6 +1,30 @@
 "use client"
 
-import { useState } from "react"
+type Subject = {
+  id: number;
+  name: string;
+};
+
+type Group = {
+  id: number;
+  name: string;
+};
+
+type Assignment = {
+  id: number;
+  title: string;
+  description: string;
+  delay: string; // Replaced dueDate with delay
+  subject: Subject;
+  group: Group;
+  className: string;
+};
+interface AssignmentsState {
+  active: Assignment[];
+  past: Assignment[];
+}
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,112 +47,104 @@ import { FileText, Plus, Edit } from "lucide-react"
 export default function TeacherAssignments() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [selectedAssignment, setSelectedAssignment] = useState<any>(null)
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
   const [newAssignment, setNewAssignment] = useState({
     title: "",
     description: "",
-    dueDate: "",
-    class: "",
-  })
+    delay: "", // Correct field name for delay
+    subject: "", // This can be a string or an object based on your structure
+    group: "",   // Same as subject
+    className:"",
+  });
+  
+  
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [assignments, setAssignments] = useState<any>({ active: [], past: [] })
+  const [loading, setLoading] = useState(true)
 
-  const handleCreateAssignment = () => {
-    setIsSubmitting(true)
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false)
-      setIsCreateDialogOpen(false)
-      setNewAssignment({
-        title: "",
-        description: "",
-        dueDate: "",
-        class: "",
+  // Fetch assignments from API
+  const fetchAssignments = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch("/api/assignments")
+      const data = await response.json()
+
+      // Update assignments state with fetched data
+      const activeAssignments = data.filter((assignment: any) => new Date(assignment.delay) > new Date()) // Changed from dueDate to delay
+      const pastAssignments = data.filter((assignment: any) => new Date(assignment.delay) <= new Date()) // Changed from dueDate to delay
+
+      setAssignments({
+        active: activeAssignments,
+        past: pastAssignments,
       })
-    }, 1500)
+    } catch (error) {
+      console.error("Failed to fetch assignments", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleEditAssignment = () => {
+  useEffect(() => {
+    fetchAssignments() // Fetch assignments on component mount
+  }, [])
+
+  const handleCreateAssignment = async () => {
     setIsSubmitting(true)
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/assignments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newAssignment),
+      })
+
+      if (response.ok) {
+        setIsCreateDialogOpen(false)
+        setNewAssignment({
+          title: "",
+          description: "",
+          delay: "", // Correct field name for delay
+          subject: "", // Reset subject
+          group: "",// Reset group
+          className:"",   
+        })
+        fetchAssignments() // Refresh assignments list
+      }
+    } catch (error) {
+      console.error("Failed to create assignment", error)
+    } finally {
       setIsSubmitting(false)
-      setIsEditDialogOpen(false)
-      setSelectedAssignment(null)
-    }, 1500)
+    }
   }
 
-  const assignments = {
-    active: [
-      {
-        id: 1,
-        title: "Calculus Problem Set 3",
-        description: "Complete problems 1-15 on page 127 of the textbook.",
-        dueDate: "Apr 22, 2025",
-        class: "Mathematics 101",
-        submissions: 18,
-        totalStudents: 32,
-      },
-      {
-        id: 2,
-        title: "Lab Report: Wave Properties",
-        description: "Write a lab report on the wave properties experiment conducted in class.",
-        dueDate: "Apr 25, 2025",
-        class: "Physics 101",
-        submissions: 5,
-        totalStudents: 28,
-      },
-      {
-        id: 3,
-        title: "Essay on Shakespeare",
-        description: "Write a 1000-word essay analyzing a theme from Hamlet.",
-        dueDate: "Apr 28, 2025",
-        class: "English Literature",
-        submissions: 12,
-        totalStudents: 30,
-      },
-      {
-        id: 4,
-        title: "Algorithm Implementation",
-        description: "Implement the sorting algorithms discussed in class.",
-        dueDate: "May 2, 2025",
-        class: "Computer Science",
-        submissions: 8,
-        totalStudents: 25,
-      },
-    ],
-    past: [
-      {
-        id: 5,
-        title: "Algebra Quiz",
-        description: "Complete the online quiz on algebraic expressions.",
-        dueDate: "Apr 10, 2025",
-        class: "Mathematics 101",
-        submissions: 30,
-        totalStudents: 32,
-        averageGrade: "B+",
-      },
-      {
-        id: 6,
-        title: "Research Paper",
-        description: "Write a research paper on a historical event of your choice.",
-        dueDate: "Apr 5, 2025",
-        class: "History",
-        submissions: 28,
-        totalStudents: 30,
-        averageGrade: "B",
-      },
-      {
-        id: 7,
-        title: "Lab Report: Chemical Reactions",
-        description: "Write a lab report on the chemical reactions experiment.",
-        dueDate: "Mar 28, 2025",
-        class: "Chemistry",
-        submissions: 24,
-        totalStudents: 26,
-        averageGrade: "A-",
-      },
-    ],
+  const handleEditAssignment = async () => {
+    if (!selectedAssignment) return; // prevent crash
+  
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/assignments/${selectedAssignment.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newAssignment),
+      })
+  
+      if (response.ok) {
+        setIsEditDialogOpen(false)
+        setSelectedAssignment(null)
+        fetchAssignments()
+      }
+    } catch (error) {
+      console.error("Failed to edit assignment", error)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
+  
+
+   
 
   return (
     <div className="space-y-6">
@@ -162,8 +178,8 @@ export default function TeacherAssignments() {
               <div className="grid w-full gap-1.5">
                 <Label htmlFor="class">Class</Label>
                 <Select
-                  value={newAssignment.class}
-                  onValueChange={(value) => setNewAssignment({ ...newAssignment, class: value })}
+                value={newAssignment.className} 
+                onValueChange={(value) => setNewAssignment({ ...newAssignment, className: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a class" />
@@ -189,12 +205,12 @@ export default function TeacherAssignments() {
                 />
               </div>
               <div className="grid w-full gap-1.5">
-                <Label htmlFor="due-date">Due Date</Label>
+                <Label htmlFor="delay">Delay (Due Date)</Label>
                 <Input
-                  id="due-date"
+                  id="delay"
                   type="date"
-                  value={newAssignment.dueDate}
-                  onChange={(e) => setNewAssignment({ ...newAssignment, dueDate: e.target.value })}
+                  value={newAssignment.delay}
+                  onChange={(e) => setNewAssignment({ ...newAssignment, delay: e.target.value })}
                 />
               </div>
             </div>
@@ -216,16 +232,16 @@ export default function TeacherAssignments() {
         </TabsList>
         <TabsContent value="active" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {assignments.active.map((assignment) => (
+            {assignments.active.map((assignment: Assignment) => (
               <Card key={assignment.id} className="overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <Badge variant="outline">{assignment.class}</Badge>
-                    <span className="text-sm text-muted-foreground">Due: {assignment.dueDate}</span>
+                    <Badge variant="outline">{assignment.subject.name}</Badge>
+                    <span className="text-sm text-muted-foreground">Due: {assignment.delay}</span>
                   </div>
                   <CardTitle className="text-lg">{assignment.title}</CardTitle>
                   <CardDescription>
-                    Submissions: {assignment.submissions}/{assignment.totalStudents}
+                    {assignment.description}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="text-sm">
@@ -234,7 +250,20 @@ export default function TeacherAssignments() {
                 <CardFooter className="flex justify-between">
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setNewAssignment({
+                            title: assignment.title,
+                            description: assignment.description,
+                            delay: assignment.delay,  // Using 'delay' instead of 'dueDate'
+                            subject: assignment.subject.name,
+                            group: assignment.group.name,
+                            className: assignment.className
+                          })
+                        }
+                      >
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                       </Button>
@@ -247,13 +276,20 @@ export default function TeacherAssignments() {
                       <div className="space-y-4 py-4">
                         <div className="grid w-full gap-1.5">
                           <Label htmlFor="edit-title">Assignment Title</Label>
-                          <Input id="edit-title" defaultValue={assignment.title} />
+                          <Input
+                            id="edit-title"
+                            value={newAssignment.title}
+                            onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
+                          />
                         </div>
                         <div className="grid w-full gap-1.5">
                           <Label htmlFor="edit-class">Class</Label>
-                          <Select defaultValue={assignment.class}>
+                          <Select
+                            value={newAssignment.className}
+                            onValueChange={(value) => setNewAssignment({ ...newAssignment, className: value })}
+                          >
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue placeholder="Select a class" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Mathematics 101">Mathematics 101</SelectItem>
@@ -269,18 +305,24 @@ export default function TeacherAssignments() {
                           <Label htmlFor="edit-description">Description</Label>
                           <Textarea
                             id="edit-description"
-                            defaultValue={assignment.description}
+                            value={newAssignment.description}
+                            onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })}
                             className="min-h-[100px]"
                           />
                         </div>
                         <div className="grid w-full gap-1.5">
-                          <Label htmlFor="edit-due-date">Due Date</Label>
-                          <Input id="edit-due-date" type="date" defaultValue={assignment.dueDate} />
+                          <Label htmlFor="edit-delay">Delay (Due Date)</Label>
+                          <Input
+                            id="edit-delay"
+                            type="date"
+                            value={newAssignment.delay}
+                            onChange={(e) => setNewAssignment({ ...newAssignment, delay: e.target.value })}
+                          />
                         </div>
                       </div>
                       <DialogFooter>
                         <Button variant="outline">Cancel</Button>
-                        <Button>Save Changes</Button>
+                        <Button onClick={handleEditAssignment}>Save Changes</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
@@ -294,32 +336,35 @@ export default function TeacherAssignments() {
           </div>
         </TabsContent>
         <TabsContent value="past" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {assignments.past.map((assignment) => (
-              <Card key={assignment.id} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline">{assignment.class}</Badge>
-                    <span className="text-sm font-medium">Avg: {assignment.averageGrade}</span>
-                  </div>
-                  <CardTitle className="text-lg">{assignment.title}</CardTitle>
-                  <CardDescription>
-                    Submissions: {assignment.submissions}/{assignment.totalStudents}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm">
-                  <p>{assignment.description}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">Due: {assignment.dueDate}</p>
-                </CardContent>
-                <CardFooter>
-                  <Button className="w-full">
-                    <FileText className="mr-2 h-4 w-4" />
-                    View Submissions
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+  {assignments.past.map((assignment: Assignment) => (
+    <Card key={assignment.id} className="overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <Badge variant="outline">{assignment.className}</Badge>
+          {/* Remove or comment out the Avg and submissions properties */}
+          {/* <span className="text-sm font-medium">Avg: {assignment.averageGrade}</span> */}
+        </div>
+        <CardTitle className="text-lg">{assignment.title}</CardTitle>
+        <CardDescription>
+          {/* Remove the submissions and totalStudents properties */}
+          {/* Submissions: {assignment.submissions}/{assignment.totalStudents} */}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="text-sm">
+        <p>{assignment.description}</p>
+        <p className="mt-2 text-xs text-muted-foreground">Due: {assignment.delay}</p>
+      </CardContent>
+      <CardFooter>
+        <Button className="w-full">
+          <FileText className="mr-2 h-4 w-4" />
+          View Submissions
+        </Button>
+      </CardFooter>
+    </Card>
+  ))}
+</div>
+
         </TabsContent>
       </Tabs>
     </div>
